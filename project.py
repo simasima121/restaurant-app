@@ -39,7 +39,6 @@ def showLogin():
     # return "The current session state is %s" % login_session['state']
     return render_template('login.html', STATE=state)
 
-
 @app.route('/gconnect', methods=['POST'])
 def gconnect():
     # Validate state token
@@ -188,7 +187,6 @@ def restaurantMenuJSON(restaurant_id):
     items = session.query(MenuItem).filter_by(restaurant_id = restaurant_id).all()
     return jsonify(MenuItems=[i.serialize for i in items])
 
-
 @app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/JSON')
 def menuItemJSON(restaurant_id, menu_id):
     Menu_Item = session.query(MenuItem).filter_by(id = menu_id).one()
@@ -205,13 +203,16 @@ def restaurantsJSON():
 @app.route('/restaurant/')
 def showRestaurants():
   restaurants = session.query(Restaurant).order_by(asc(Restaurant.name))
-  return render_template('restaurants.html', restaurants = restaurants)
+  if 'username' not in login_session:
+    return render_template('publicrestaurants.html', restaurants = restaurants)
+  else:
+    return render_template('restaurants.html', restaurants = restaurants)
 
 #Create a new restaurant
 @app.route('/restaurant/new/', methods=['GET','POST'])
 def newRestaurant():
   if 'username' not in login_session:
-    return redirect('/login')
+    return redirect('/login/')
   if request.method == 'POST':
       newRestaurant = Restaurant(name = request.form['name'], user_id=login_session['user_id'])
       session.add(newRestaurant)
@@ -224,16 +225,18 @@ def newRestaurant():
 #Edit a restaurant
 @app.route('/restaurant/<int:restaurant_id>/edit/', methods = ['GET', 'POST'])
 def editRestaurant(restaurant_id):
-  if 'username' not in login_session:
+   if 'username' not in login_session:
     return redirect('/login')
-  editedRestaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
-  if request.method == 'POST':
+   editedRestaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
+   if editedRestaurant.user_id != login_session['user_id']:
+    return "<script>function myFunction() {alert('You are not authorized to edit this restaurant. Please create your own restaurant in order to edit.')} </script><body onload='myFunction()''>"
+   if request.method == 'POST':
       if request.form['name']:
-        editedRestaurant.name = request.form['name']
-        flash('Restaurant Successfully Edited %s' % editedRestaurant.name)
-        return redirect(url_for('showRestaurants'))
-  else:
-    return render_template('editRestaurant.html', restaurant = editedRestaurant)
+         editedRestaurant.name = request.form['name']
+         flash('Restaurant Successfully Edited %s' % editedRestaurant.name)
+         return redirect(url_for('showRestaurants'))
+   else:
+      return render_template('editRestaurant.html', restaurant = editedRestaurant)
 
 
 #Delete a restaurant
@@ -242,6 +245,8 @@ def deleteRestaurant(restaurant_id):
   if 'username' not in login_session:
     return redirect('/login')
   restaurantToDelete = session.query(Restaurant).filter_by(id = restaurant_id).one()
+  if restaurantToDelete.user_id != login_session['user_id']:
+    return "<script>function myFunction() {alert('You are not authorized to delete this restaurant. Please create your own restaurant in order to delete.')} </script><body onload='myFunction()''>" 
   if request.method == 'POST':
     session.delete(restaurantToDelete)
     flash('%s Successfully Deleted' % restaurantToDelete.name)
@@ -255,8 +260,13 @@ def deleteRestaurant(restaurant_id):
 @app.route('/restaurant/<int:restaurant_id>/menu/')
 def showMenu(restaurant_id):
     restaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
+    creator = getUserInfo(restaurant.user_id)
     items = session.query(MenuItem).filter_by(restaurant_id = restaurant_id).all()
-    return render_template('menu.html', items = items, restaurant = restaurant)
+
+    if creator not in login_session or creator.id != login_session['user_id']:
+      return render_template('publicmenu.html', items = items, restaurant = restaurant, creator = creator)
+    else:
+      return render_template('menu.html', items = items, restaurant = restaurant, creator = creator)
      
 #Create a new menu item
 @app.route('/restaurant/<int:restaurant_id>/menu/new/',methods=['GET','POST'])
