@@ -90,8 +90,7 @@ def gconnect():
     stored_credentials = login_session.get('credentials')
     stored_gplus_id = login_session.get('gplus_id')
     if stored_credentials is not None and gplus_id == stored_gplus_id:
-        response = make_response(json.dumps('Current user is already connected.'),
-                                 200)
+        response = make_response(json.dumps('Current user is already connected.'), 200)
         response.headers['Content-Type'] = 'application/json'
         return response
 
@@ -113,7 +112,7 @@ def gconnect():
     login_session['email'] = data['email']
 
     #see if user exists, if it doesn't make a new user
-    user_id = getUserID(login_session['email'])
+    user_id = getUserID(data["email"])
     if not user_id:
         user_id = createUser(login_session)
     login_session['user_id'] = user_id
@@ -158,7 +157,7 @@ def gdisconnect():
             json.dumps('Current user not connected.'), 401)
         response.headers['Content-Type'] = 'application/json'
         return response
-    access_token = credentials.access_token
+    access_token = login_session.get('credentials')
     url = 'https://accounts.google.com/o/oauth2/revoke?token=%s' % access_token
     h = httplib2.Http()
     result = h.request(url, 'GET')[0]
@@ -180,6 +179,11 @@ def gdisconnect():
             json.dumps('Failed to revoke token for given user.', 400))
         response.headers['Content-Type'] = 'application/json'
         return response
+        
+@app.route('/clearSession/')
+def clearSession():
+    login_session.clear()
+    return "Session cleared"
 
 @app.route('/fbconnect', methods=['POST'])
 def fbconnect():
@@ -247,7 +251,7 @@ def fbconnect():
     return output
 
 
-@app.route('/fbdisconnect')
+@app.route('/fbdisconnect/')
 def fbdisconnect():
     facebook_id = login_session['facebook_id']
     # The access token must me included to successfully logout
@@ -257,7 +261,7 @@ def fbdisconnect():
     result = h.request(url, 'DELETE')[1]
     return "you have been logged out"
 
-@app.route('/disconnect')
+@app.route('/disconnect/')
 def disconnect():
   if 'provider' in login_session:
     if login_session['provider'] == 'google':
@@ -325,11 +329,12 @@ def newRestaurant():
 #Edit a restaurant
 @app.route('/restaurant/<int:restaurant_id>/edit/', methods = ['GET', 'POST'])
 def editRestaurant(restaurant_id):
+   editedRestaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
    if 'username' not in login_session:
     return redirect('/login')
-   editedRestaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
+   
    if editedRestaurant.user_id != login_session['user_id']:
-    return "<script>function myFunction() {alert('You are not authorized to edit this restaurant. Please create your own restaurant in order to edit.')} </script><body onload='myFunction()''>"
+    return "<script>function myFunction() {alert('You are not authorized to edit this restaurant. Please create your own restaurant in order to edit.');}</script><body onload='myFunction()''>"
    if request.method == 'POST':
       if request.form['name']:
          editedRestaurant.name = request.form['name']
@@ -342,9 +347,9 @@ def editRestaurant(restaurant_id):
 #Delete a restaurant
 @app.route('/restaurant/<int:restaurant_id>/delete/', methods = ['GET','POST'])
 def deleteRestaurant(restaurant_id):
+  restaurantToDelete = session.query(Restaurant).filter_by(id = restaurant_id).one()
   if 'username' not in login_session:
     return redirect('/login')
-  restaurantToDelete = session.query(Restaurant).filter_by(id = restaurant_id).one()
   if restaurantToDelete.user_id != login_session['user_id']:
     return "<script>function myFunction() {alert('You are not authorized to delete this restaurant. Please create your own restaurant in order to delete.')} </script><body onload='myFunction()''>" 
   if request.method == 'POST':
@@ -363,7 +368,7 @@ def showMenu(restaurant_id):
     creator = getUserInfo(restaurant.user_id)
     items = session.query(MenuItem).filter_by(restaurant_id = restaurant_id).all()
 
-    if creator not in login_session or creator.id != login_session['user_id']:
+    if 'username' not in login_session or creator.id != login_session['user_id']:
       return render_template('publicmenu.html', items = items, restaurant = restaurant, creator = creator)
     else:
       return render_template('menu.html', items = items, restaurant = restaurant, creator = creator)
