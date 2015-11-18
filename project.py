@@ -180,7 +180,7 @@ def gdisconnect():
         response.headers['Content-Type'] = 'application/json'
         return response
         
-@app.route('/clearSession/')
+@app.route('/clearsession/')
 def clearSession():
     login_session.clear()
     return "Session cleared"
