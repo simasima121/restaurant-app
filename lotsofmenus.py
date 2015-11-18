@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 
 from database_setup import Restaurant, Base, MenuItem, User
 
-engine = create_engine('sqlite:///restaurantmenuwithusers.db')
+engine = create_engine('postgres://xphcufoatkdjux:4Xnq9Zt35cKVVQa-Efw10dsBEy@ec2-54-247-170-228.eu-west-1.compute.amazonaws.com:5432/d5j3ukr6dt3pe9')
 # Bind the engine to the metadata of the Base class so that the
 # declaratives can be accessed through a DBSession instance
 Base.metadata.bind = engine
